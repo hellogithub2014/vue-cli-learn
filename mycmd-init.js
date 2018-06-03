@@ -5,7 +5,10 @@ const program = require('commander');
 const path = require('path');
 const fs = require('fs');
 const glob = require('glob'); // npm i glob -D
+
 const download = require('./lib/download');
+const generator = require('./lib/generator');
+const moveFiles = require('./lib/moveFiles');
 
 program.usage('<project-name>').parse(process.argv);
 
@@ -70,40 +73,44 @@ function go() {
       }));
     })
     .then(context => {
-      return inquirer
-        .prompt([
-          {
-            name: 'projectName',
-            message: '项目的名称',
-            default: context.name,
-          },
-          {
-            name: 'projectVersion',
-            message: '项目的版本号',
-            default: '1.0.0',
-          },
-          {
-            name: 'projectDescription',
-            message: '项目的简介',
-            default: `A project named ${context.name}`,
-          },
-        ])
-        .then(answers => {
-          return latestVersion('download-git-repo')
-            .then(version => {
-              answers.supportUiVersion = version;
-              return {
-                ...context,
-                metadata: {
-                  ...answers,
-                },
-              };
-            })
-            .catch(err => {
-              return Promise.reject(err);
-            });
-        });
+      return inquirer['prompt']([
+        {
+          name: 'projectName',
+          message: '项目的名称',
+          default: context.name,
+        },
+        {
+          name: 'projectVersion',
+          message: '项目的版本号',
+          default: '1.0.0',
+        },
+        {
+          name: 'projectDescription',
+          message: '项目的简介',
+          default: `A project named ${context.name}`,
+        },
+      ]).then(answers => {
+        return latestVersion('download-git-repo')
+          .then(version => {
+            answers.supportUiVersion = version;
+            return {
+              ...context,
+              metadata: {
+                ...answers,
+              },
+            };
+          })
+          .catch(err => {
+            return Promise.reject(err);
+          });
+      });
     })
-    .then(console.log)
+    .then(context => {
+      return moveFiles('template/template', context.name).then(_ => context);
+    })
+    .then(context => {
+      console.log(context);
+      return generator(context);
+    })
     .catch(err => console.log(err));
 }
